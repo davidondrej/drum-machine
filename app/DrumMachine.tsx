@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { SOUNDS, resumeAudio } from "@/lib/audioEngine";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/utils/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
 const NUM_SOUNDS = 16;
@@ -21,6 +21,8 @@ function createEmptyPattern(): boolean[][] {
 }
 
 export default function DrumMachine() {
+  const supabase = useMemo(() => createClient(), []);
+
   const [activePads, setActivePads] = useState<Set<number>>(new Set());
   const [pattern, setPattern] = useState<boolean[][]>(createEmptyPattern);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -195,7 +197,7 @@ export default function DrumMachine() {
   const handleSignIn = useCallback(() => {
     supabase.auth.signInWithOAuth({
       provider: "github",
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
   }, []);
 
