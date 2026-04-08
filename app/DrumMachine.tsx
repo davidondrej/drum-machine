@@ -2,34 +2,22 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { SOUNDS, resumeAudio } from "@/lib/audioEngine";
+import { supabase } from "@/lib/supabase";
+import type { User } from "@supabase/supabase-js";
 
 const NUM_SOUNDS = 16;
 const NUM_STEPS = 8;
-const STORAGE_KEY = "drum-machine-patterns";
 
 interface SavedPattern {
+  id: string;
   name: string;
   pattern: boolean[][];
   bpm: number;
-  savedAt: number;
+  created_at: string;
 }
 
 function createEmptyPattern(): boolean[][] {
   return Array.from({ length: NUM_SOUNDS }, () => Array(NUM_STEPS).fill(false));
-}
-
-function loadPatternsFromStorage(): SavedPattern[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function storePatternsToStorage(patterns: SavedPattern[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(patterns));
 }
 
 export default function DrumMachine() {
@@ -38,6 +26,10 @@ export default function DrumMachine() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(-1);
   const [bpm, setBpm] = useState(120);
+
+  // Auth state
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   // Save/Load state
   const [savedPatterns, setSavedPatterns] = useState<SavedPattern[]>([]);
@@ -49,18 +41,54 @@ export default function DrumMachine() {
   const patternRef = useRef(pattern);
   const stepRef = useRef(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const timeoutRefs = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const timeoutRefs = useRef<Map<number, ReturnType<typeof setTimeout>>>(
+    new Map()
+  );
   const saveInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     patternRef.current = pattern;
   }, [pattern]);
 
+  // Auth: subscribe to session changes
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Fetch patterns from Supabase when user changes
+  useEffect(() => {
+    if (!user) {
+      setSavedPatterns([]);
+      return;
+    }
+
+    async function fetchPatterns() {
+      const { data } = await supabase
+        .from("patterns")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (data) setSavedPatterns(data as SavedPattern[]);
+    }
+
+    fetchPatterns();
+  }, [user]);
+
   const triggerPad = useCallback((index: number) => {
     resumeAudio();
     SOUNDS[index].play();
 
-    // Clear existing timeout for this pad
     const existing = timeoutRefs.current.get(index);
     if (existing) clearTimeout(existing);
 
@@ -96,7 +124,6 @@ export default function DrumMachine() {
     setCurrentStep(0);
     setIsPlaying(true);
 
-    // Play first step immediately
     const p = patternRef.current;
     for (let i = 0; i < NUM_SOUNDS; i++) {
       if (p[i][0]) triggerPad(i);
@@ -111,7 +138,7 @@ export default function DrumMachine() {
       for (let i = 0; i < NUM_SOUNDS; i++) {
         if (pat[i][step]) triggerPad(i);
       }
-    }, (60 / bpm) * 1000 * 0.5); // 8th notes
+    }, (60 / bpm) * 1000 * 0.5);
   }, [bpm, triggerPad]);
 
   const stopPlayback = useCallback(() => {
@@ -152,11 +179,6 @@ export default function DrumMachine() {
     setPattern(createEmptyPattern());
   }, []);
 
-  // Load saved patterns from localStorage on mount
-  useEffect(() => {
-    setSavedPatterns(loadPatternsFromStorage());
-  }, []);
-
   // Auto-focus save input when it appears
   useEffect(() => {
     if (showSave && saveInputRef.current) {
@@ -169,66 +191,151 @@ export default function DrumMachine() {
     setTimeout(() => setFlashMessage(""), 2000);
   }, []);
 
-  const handleSave = useCallback(() => {
+  // Auth handlers
+  const handleSignIn = useCallback(() => {
+    supabase.auth.signInWithOAuth({
+      provider: "github",
+      options: { redirectTo: window.location.origin },
+    });
+  }, []);
+
+  const handleSignOut = useCallback(async () => {
+    await supabase.auth.signOut();
+    setSavedPatterns([]);
+    setShowSave(false);
+    setShowLoad(false);
+  }, []);
+
+  // Save pattern to Supabase
+  const handleSave = useCallback(async () => {
     const name = saveName.trim();
-    if (!name) return;
+    if (!name || !user) return;
 
-    const entry: SavedPattern = {
-      name,
-      pattern: pattern.map((row) => [...row]),
-      bpm,
-      savedAt: Date.now(),
-    };
+    const { data, error } = await supabase
+      .from("patterns")
+      .insert({
+        user_id: user.id,
+        name,
+        pattern: pattern.map((row) => [...row]),
+        bpm,
+      })
+      .select()
+      .single();
 
-    const updated = [...savedPatterns, entry];
-    storePatternsToStorage(updated);
-    setSavedPatterns(updated);
+    if (error) {
+      flash("Save failed");
+      return;
+    }
+
+    setSavedPatterns((prev) => [data as SavedPattern, ...prev]);
     setSaveName("");
     setShowSave(false);
     flash(`Saved "${name}"`);
-  }, [saveName, pattern, bpm, savedPatterns, flash]);
+  }, [saveName, pattern, bpm, user, flash]);
 
-  const handleLoad = useCallback((saved: SavedPattern) => {
-    setPattern(saved.pattern.map((row) => [...row]));
-    setBpm(saved.bpm);
-    setShowLoad(false);
-    flash(`Loaded "${saved.name}"`);
-  }, [flash]);
-
-  const handleDelete = useCallback(
-    (index: number) => {
-      const name = savedPatterns[index].name;
-      const updated = savedPatterns.filter((_, i) => i !== index);
-      storePatternsToStorage(updated);
-      setSavedPatterns(updated);
-      flash(`Deleted "${name}"`);
+  const handleLoad = useCallback(
+    (saved: SavedPattern) => {
+      setPattern(saved.pattern.map((row) => [...row]));
+      setBpm(saved.bpm);
+      setShowLoad(false);
+      flash(`Loaded "${saved.name}"`);
     },
-    [savedPatterns, flash]
+    [flash]
   );
 
-  const handleOverwrite = useCallback(
-    (index: number) => {
-      const updated = [...savedPatterns];
-      updated[index] = {
-        ...updated[index],
-        pattern: pattern.map((row) => [...row]),
-        bpm,
-        savedAt: Date.now(),
-      };
-      storePatternsToStorage(updated);
-      setSavedPatterns(updated);
-      flash(`Updated "${updated[index].name}"`);
+  // Delete pattern from Supabase
+  const handleDelete = useCallback(
+    async (id: string, name: string) => {
+      const { error } = await supabase
+        .from("patterns")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        flash("Delete failed");
+        return;
+      }
+
+      setSavedPatterns((prev) => prev.filter((p) => p.id !== id));
+      flash(`Deleted "${name}"`);
     },
-    [savedPatterns, pattern, bpm, flash]
+    [flash]
+  );
+
+  // Overwrite pattern in Supabase
+  const handleOverwrite = useCallback(
+    async (id: string, name: string) => {
+      const { error } = await supabase
+        .from("patterns")
+        .update({
+          pattern: pattern.map((row) => [...row]),
+          bpm,
+        })
+        .eq("id", id);
+
+      if (error) {
+        flash("Update failed");
+        return;
+      }
+
+      setSavedPatterns((prev) =>
+        prev.map((p) =>
+          p.id === id
+            ? { ...p, pattern: pattern.map((row) => [...row]), bpm }
+            : p
+        )
+      );
+      flash(`Updated "${name}"`);
+    },
+    [pattern, bpm, flash]
   );
 
   return (
-    <div className="min-h-screen flex flex-col items-center px-4 py-8 select-none">
+    <div className="relative min-h-screen flex flex-col items-center px-4 py-8 select-none">
+      {/* Auth — top right */}
+      {!authLoading && (
+        <div className="absolute top-4 right-4 z-10">
+          {user ? (
+            <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-full"
+              style={{ backgroundColor: "#ffffff0a", border: "1px solid #ffffff12" }}>
+              {user.user_metadata.avatar_url && (
+                <img
+                  src={user.user_metadata.avatar_url}
+                  alt=""
+                  className="w-6 h-6 rounded-full"
+                />
+              )}
+              <span className="text-xs text-gray-400">
+                {user.user_metadata.user_name || user.email}
+              </span>
+              <button
+                onClick={handleSignOut}
+                className="text-xs text-gray-600 hover:text-white cursor-pointer transition-colors ml-0.5"
+              >
+                &times;
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleSignIn}
+              className="flex items-center gap-2.5 px-5 py-2.5 rounded-full text-sm font-medium cursor-pointer transition-all hover:bg-white/15 hover:text-white hover:border-white/30"
+              style={{ backgroundColor: "#ffffff08", border: "1px solid #ffffff15", color: "#aaa" }}
+            >
+              <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+              </svg>
+              Sign in
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Title */}
       <h1
         className="text-4xl font-bold tracking-wider mb-2"
         style={{
-          background: "linear-gradient(90deg, #ff0055, #00ccff, #00ff88, #ffcc00)",
+          background:
+            "linear-gradient(90deg, #ff0055, #00ccff, #00ff88, #ffcc00)",
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
         }}
@@ -274,7 +381,10 @@ export default function DrumMachine() {
       </div>
 
       {/* Step Sequencer */}
-      <div className="w-full max-w-4xl rounded-2xl p-5" style={{ backgroundColor: "#12121a" }}>
+      <div
+        className="w-full max-w-4xl rounded-2xl p-5"
+        style={{ backgroundColor: "#12121a" }}
+      >
         {/* Transport Controls */}
         <div className="flex items-center gap-4 mb-4 flex-wrap">
           <button
@@ -317,50 +427,55 @@ export default function DrumMachine() {
             CLEAR
           </button>
 
-          <div className="h-5 w-px bg-gray-700 mx-1" />
+          {/* Save/Load buttons — only when signed in */}
+          {user && (
+            <>
+              <div className="h-5 w-px bg-gray-700 mx-1" />
 
-          <button
-            onClick={() => {
-              setShowSave(!showSave);
-              setShowLoad(false);
-            }}
-            className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
-            style={{
-              backgroundColor: showSave ? "#cc00ff" : "transparent",
-              color: showSave ? "#000" : "#cc00ff",
-              border: "1px solid #cc00ff66",
-              boxShadow: showSave ? "0 0 12px #cc00ff60" : "none",
-            }}
-          >
-            SAVE
-          </button>
-
-          <button
-            onClick={() => {
-              setShowLoad(!showLoad);
-              setShowSave(false);
-            }}
-            className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
-            style={{
-              backgroundColor: showLoad ? "#00ccff" : "transparent",
-              color: showLoad ? "#000" : "#00ccff",
-              border: "1px solid #00ccff66",
-              boxShadow: showLoad ? "0 0 12px #00ccff60" : "none",
-            }}
-          >
-            LOAD
-            {savedPatterns.length > 0 && (
-              <span
-                className="ml-1.5 text-xs px-1.5 py-0.5 rounded-full"
+              <button
+                onClick={() => {
+                  setShowSave(!showSave);
+                  setShowLoad(false);
+                }}
+                className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
                 style={{
-                  backgroundColor: showLoad ? "#00000033" : "#00ccff22",
-                  color: showLoad ? "#000" : "#00ccff",
+                  backgroundColor: showSave ? "#cc00ff" : "transparent",
+                  color: showSave ? "#000" : "#cc00ff",
+                  border: "1px solid #cc00ff66",
+                  boxShadow: showSave ? "0 0 12px #cc00ff60" : "none",
                 }}
               >
-                {savedPatterns.length}
-              </span>
-            )}
-          </button>
+                SAVE
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowLoad(!showLoad);
+                  setShowSave(false);
+                }}
+                className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
+                style={{
+                  backgroundColor: showLoad ? "#00ccff" : "transparent",
+                  color: showLoad ? "#000" : "#00ccff",
+                  border: "1px solid #00ccff66",
+                  boxShadow: showLoad ? "0 0 12px #00ccff60" : "none",
+                }}
+              >
+                LOAD
+                {savedPatterns.length > 0 && (
+                  <span
+                    className="ml-1.5 text-xs px-1.5 py-0.5 rounded-full"
+                    style={{
+                      backgroundColor: showLoad ? "#00000033" : "#00ccff22",
+                      color: showLoad ? "#000" : "#00ccff",
+                    }}
+                  >
+                    {savedPatterns.length}
+                  </span>
+                )}
+              </button>
+            </>
+          )}
 
           {/* Flash message */}
           {flashMessage && (
@@ -374,10 +489,13 @@ export default function DrumMachine() {
         </div>
 
         {/* Save Panel */}
-        {showSave && (
+        {showSave && user && (
           <div
             className="mb-4 p-3 rounded-lg flex items-center gap-3"
-            style={{ backgroundColor: "#1a1a2e", border: "1px solid #cc00ff33" }}
+            style={{
+              backgroundColor: "#1a1a2e",
+              border: "1px solid #cc00ff33",
+            }}
           >
             <span className="text-sm text-gray-400 shrink-0">Name:</span>
             <input
@@ -416,7 +534,7 @@ export default function DrumMachine() {
         )}
 
         {/* Load Panel */}
-        {showLoad && (
+        {showLoad && user && (
           <div
             className="mb-4 rounded-lg overflow-hidden"
             style={{ border: "1px solid #00ccff33" }}
@@ -428,7 +546,7 @@ export default function DrumMachine() {
             ) : (
               <div className="max-h-48 overflow-y-auto">
                 {savedPatterns.map((saved, idx) => {
-                  const date = new Date(saved.savedAt);
+                  const date = new Date(saved.created_at);
                   const dateStr = date.toLocaleDateString("en-US", {
                     month: "short",
                     day: "numeric",
@@ -437,14 +555,17 @@ export default function DrumMachine() {
                     hour: "2-digit",
                     minute: "2-digit",
                   });
-                  const activeSteps = saved.pattern.flat().filter(Boolean).length;
+                  const activeSteps = saved.pattern
+                    .flat()
+                    .filter(Boolean).length;
 
                   return (
                     <div
-                      key={idx}
+                      key={saved.id}
                       className="flex items-center gap-3 px-3 py-2 transition-colors"
                       style={{
-                        backgroundColor: idx % 2 === 0 ? "#1a1a2e" : "#15151f",
+                        backgroundColor:
+                          idx % 2 === 0 ? "#1a1a2e" : "#15151f",
                       }}
                     >
                       <div className="flex-1 min-w-0">
@@ -468,7 +589,7 @@ export default function DrumMachine() {
                         LOAD
                       </button>
                       <button
-                        onClick={() => handleOverwrite(idx)}
+                        onClick={() => handleOverwrite(saved.id, saved.name)}
                         className="px-3 py-1 rounded text-xs font-bold cursor-pointer transition-colors shrink-0"
                         style={{
                           backgroundColor: "#ffcc0015",
@@ -480,7 +601,7 @@ export default function DrumMachine() {
                         UPDATE
                       </button>
                       <button
-                        onClick={() => handleDelete(idx)}
+                        onClick={() => handleDelete(saved.id, saved.name)}
                         className="text-gray-600 hover:text-red-400 cursor-pointer text-lg leading-none px-1 shrink-0 transition-colors"
                         title="Delete pattern"
                       >
@@ -550,9 +671,10 @@ export default function DrumMachine() {
                         border: `1px solid ${
                           isOn ? `${sound.color}66` : "#2a2a3e"
                         }`,
-                        boxShadow: isOn && isCurrent
-                          ? `0 0 8px ${sound.color}80`
-                          : "none",
+                        boxShadow:
+                          isOn && isCurrent
+                            ? `0 0 8px ${sound.color}80`
+                            : "none",
                       }}
                     />
                   );

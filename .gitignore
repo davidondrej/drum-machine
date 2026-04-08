@@ -4,3 +4,18 @@ out/
 *.tsbuildinfo
 next-env.d.ts
 .DS_Store
+
+# Environment variables
+.env
+.env.local
+.env*.local
+
+# Vercel
+.vercel
+
+# Debug logs
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
