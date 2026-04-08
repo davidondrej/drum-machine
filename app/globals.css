@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0a0a0f;
+  --surface: #12121a;
+  --surface-light: #1a1a2e;
+}
+
+body {
+  background: var(--background);
+  color: #fff;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.08);
+    filter: brightness(1.6);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+@keyframes glow-pulse {
+  0% {
+    box-shadow: 0 0 8px var(--pad-color), 0 0 16px var(--pad-color);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--pad-color), 0 0 40px var(--pad-color), 0 0 60px var(--pad-color);
+  }
+  100% {
+    box-shadow: 0 0 8px var(--pad-color), 0 0 16px var(--pad-color);
+  }
+}
+
+.pad-trigger {
+  animation: ripple 0.25s ease-out, glow-pulse 0.25s ease-out;
+}
+
+@keyframes beat-flash {
+  0% { opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; }
+}
+
+.beat-active {
+  animation: beat-flash 0.15s ease-out;
+}
+
+/* Custom scrollbar for sequencer */
+.sequencer-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+.sequencer-scroll::-webkit-scrollbar-track {
+  background: var(--surface);
+  border-radius: 3px;
+}
+.sequencer-scroll::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
