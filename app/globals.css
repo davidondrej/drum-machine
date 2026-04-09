@@ -1,15 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0a0f;
-  --surface: #12121a;
-  --surface-light: #1a1a2e;
+  --background: #05070d;
+  --surface: rgba(12, 17, 28, 0.86);
+  --surface-light: rgba(19, 26, 40, 0.92);
 }
 
 body {
   background: var(--background);
   color: #fff;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  background-image:
+    radial-gradient(circle at top left, rgba(255, 0, 111, 0.18), transparent 30%),
+    radial-gradient(circle at top right, rgba(0, 214, 255, 0.14), transparent 28%),
+    radial-gradient(circle at bottom center, rgba(0, 255, 163, 0.12), transparent 26%),
+    linear-gradient(160deg, #04060a 0%, #090d16 48%, #05070d 100%);
 }
 
 @keyframes ripple {
@@ -44,23 +49,124 @@ body {
 }
 
 @keyframes beat-flash {
-  0% { opacity: 0.3; }
-  50% { opacity: 1; }
-  100% { opacity: 0.3; }
+  0% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.3;
+  }
 }
 
 .beat-active {
   animation: beat-flash 0.15s ease-out;
 }
 
-/* Custom scrollbar for sequencer */
+.dj-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 120px 120px;
+  mask-image: radial-gradient(circle at center, black, transparent 78%);
+}
+
+.glass-panel {
+  background: linear-gradient(180deg, rgba(18, 24, 38, 0.92), rgba(11, 15, 25, 0.88));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 26px 90px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(18px);
+}
+
+.ambient-orb {
+  position: absolute;
+  width: 24rem;
+  height: 24rem;
+  border-radius: 999px;
+  filter: blur(80px);
+  opacity: 0.22;
+}
+
+.ambient-orb-left {
+  top: 4rem;
+  left: -6rem;
+  background: #ff2f92;
+}
+
+.ambient-orb-right {
+  right: -5rem;
+  top: 12rem;
+  background: #00d2ff;
+}
+
+.keyboard-shell {
+  background:
+    linear-gradient(180deg, rgba(7, 11, 19, 0.96), rgba(14, 18, 28, 0.92)),
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.05), transparent 45%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.white-key,
+.black-key {
+  position: absolute;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 0.85rem;
+  user-select: none;
+  touch-action: none;
+  transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+}
+
+.white-key {
+  bottom: 0;
+  height: 100%;
+  border-radius: 0 0 14px 14px;
+  background: linear-gradient(180deg, #f8fbff 0%, #d9e2f0 68%, #b5c0d2 100%);
+  color: #334155;
+  border: 1px solid rgba(15, 23, 42, 0.24);
+  box-shadow: inset 0 -8px 20px rgba(15, 23, 42, 0.15);
+}
+
+.black-key {
+  top: 0;
+  z-index: 2;
+  height: 62%;
+  border-radius: 0 0 12px 12px;
+  background: linear-gradient(180deg, #1d2434 0%, #0a0e16 100%);
+  color: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.35);
+}
+
+.white-key.key-active,
+.black-key.key-active {
+  transform: translateY(2px);
+  box-shadow: 0 0 20px var(--key-accent), inset 0 0 18px rgba(255, 255, 255, 0.1);
+}
+
+.white-key.key-active {
+  background: linear-gradient(180deg, #ffffff 0%, #ecf4ff 55%, #cfdff8 100%);
+}
+
+.black-key.key-active {
+  background: linear-gradient(180deg, #2c3449 0%, #111826 100%);
+}
+
 .sequencer-scroll::-webkit-scrollbar {
   height: 6px;
 }
+
 .sequencer-scroll::-webkit-scrollbar-track {
   background: var(--surface);
   border-radius: 3px;
 }
+
 .sequencer-scroll::-webkit-scrollbar-thumb {
   background: #333;
   border-radius: 3px;

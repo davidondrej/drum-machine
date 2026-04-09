@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Drum Machine",
-  description: "A neon drum machine with step sequencer",
+  description: "A neon drum machine with a live melody synth and step sequencer",
 };
 
 export default function RootLayout({
