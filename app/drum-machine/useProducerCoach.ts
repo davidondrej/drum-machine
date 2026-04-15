@@ -11,6 +11,7 @@ import {
 interface ProducerCoachState {
   feedback: CoachFeedback;
   error: string;
+  hasAnalyzed: boolean;
   isLoading: boolean;
   isStale: boolean;
   lastUpdated: string;
@@ -24,6 +25,7 @@ export function useProducerCoach(
 ): ProducerCoachState {
   const [feedback, setFeedback] = useState<CoachFeedback>(EMPTY_COACH_FEEDBACK);
   const [error, setError] = useState("");
+  const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isStale, setIsStale] = useState(false);
   const [lastUpdated, setLastUpdated] = useState("");
@@ -31,7 +33,6 @@ export function useProducerCoach(
   const snapshotKey = JSON.stringify(snapshot);
   const abortRef = useRef<AbortController | null>(null);
   const hasLoadedRef = useRef(false);
-  const refreshRef = useRef<() => void>(() => undefined);
 
   const refresh = useCallback(async () => {
     if (!enabled) {
@@ -64,6 +65,7 @@ export function useProducerCoach(
 
       setFeedback(normalizeCoachFeedback(payload?.feedback));
       setRemainingToday(typeof payload?.remaining === "number" ? payload.remaining : null);
+      setHasAnalyzed(true);
       setIsStale(false);
       setLastUpdated(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
       hasLoadedRef.current = true;
@@ -82,14 +84,13 @@ export function useProducerCoach(
     }
   }, [enabled, snapshot]);
 
-  refreshRef.current = refresh;
-
   useEffect(() => {
     if (!enabled) {
       abortRef.current?.abort();
       hasLoadedRef.current = false;
       setFeedback(EMPTY_COACH_FEEDBACK);
       setError("");
+      setHasAnalyzed(false);
       setIsLoading(false);
       setIsStale(false);
       setLastUpdated("");
@@ -100,12 +101,6 @@ export function useProducerCoach(
     if (hasLoadedRef.current) {
       setIsStale(true);
     }
-
-    const timeoutId = window.setTimeout(() => {
-      void refreshRef.current();
-    }, 1300);
-
-    return () => window.clearTimeout(timeoutId);
   }, [enabled, snapshotKey]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -113,6 +108,7 @@ export function useProducerCoach(
   return {
     feedback,
     error,
+    hasAnalyzed,
     isLoading,
     isStale,
     lastUpdated,

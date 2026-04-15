@@ -7,6 +7,7 @@ interface ProducerCoachPanelProps {
   feedback: CoachFeedback;
   snapshot: MachineSnapshot;
   error: string;
+  hasAnalyzed: boolean;
   isLoading: boolean;
   isStale: boolean;
   lastUpdated: string;
@@ -51,6 +52,7 @@ export function ProducerCoachPanel({
   feedback,
   snapshot,
   error,
+  hasAnalyzed,
   isLoading,
   isStale,
   lastUpdated,
@@ -59,7 +61,13 @@ export function ProducerCoachPanel({
   onRefresh,
   onSignIn,
 }: ProducerCoachPanelProps) {
-  const statusLabel = isLoading ? "Analyzing" : isStale ? "Out of date" : "Fresh";
+  const statusLabel = isLoading
+    ? "Analyzing"
+    : !hasAnalyzed
+      ? "Waiting"
+      : isStale
+        ? "Out of date"
+        : "Fresh";
   const activeDrums = snapshot.drums.filter((lane) => lane.hitCount > 0).length;
 
   if (authLoading) {
@@ -115,7 +123,7 @@ export function ProducerCoachPanel({
           disabled={isLoading || !userSignedIn}
           className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200 transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Refresh
+          {hasAnalyzed ? "Refresh" : "Analyze"}
         </button>
       </div>
 
@@ -159,7 +167,11 @@ export function ProducerCoachPanel({
           Read
         </h3>
         <p className="mt-3 text-sm leading-7 text-zinc-100">{feedback.summary}</p>
-        <p className="mt-3 text-xs leading-6 text-cyan-200/90">{feedback.producerNote}</p>
+        <p className="mt-3 text-xs leading-6 text-cyan-200/90">
+          {hasAnalyzed
+            ? feedback.producerNote
+            : "Press Analyze when you want feedback on the current pattern."}
+        </p>
       </section>
 
       <div className="space-y-5">

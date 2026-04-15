@@ -66,6 +66,7 @@ export default function DrumMachine() {
             feedback={coach.feedback}
             snapshot={snapshot}
             error={coach.error}
+            hasAnalyzed={coach.hasAnalyzed}
             isLoading={coach.isLoading}
             isStale={coach.isStale}
             lastUpdated={coach.lastUpdated}
