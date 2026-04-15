@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { DrumSampleAssignment, FreesoundSound } from "@/lib/freesound";
+import type {
+  DrumSampleAssignment,
+  FreesoundSearchResponse,
+  FreesoundSound,
+} from "@/lib/freesound";
 
 interface FreesoundPanelProps {
   selectedPadColor: string;
@@ -47,11 +51,16 @@ export function FreesoundPanel({
     setSearchError("");
 
     try {
-      const response = await fetch(`/api/freesound?q=${encodeURIComponent(nextQuery)}`, {
+      const searchParams = new URLSearchParams({
+        query: nextQuery,
+        page: "1",
+        page_size: "20",
+      });
+      const response = await fetch(`/api/freesound?${searchParams.toString()}`, {
         cache: "no-store",
       });
       const payload = (await response.json().catch(() => null)) as
-        | { error?: string; results?: FreesoundSound[] }
+        | ({ error?: string } & Partial<FreesoundSearchResponse>)
         | null;
 
       if (!response.ok) {
@@ -179,9 +188,11 @@ export function FreesoundPanel({
             >
               <p className="truncate text-sm font-bold text-white">{sound.name}</p>
               <p className="mt-1 text-xs uppercase tracking-[0.16em] text-zinc-400">
-                @{sound.username} · {sound.duration.toFixed(1)}s
+                @{sound.username}
               </p>
-              <p className="mt-1 truncate text-xs text-zinc-500">{sound.license}</p>
+              <p className="mt-1 truncate text-xs text-zinc-500">
+                {sound.tags.slice(0, 3).join(", ") || sound.license}
+              </p>
             </button>
 
             <div className="flex items-center gap-2">

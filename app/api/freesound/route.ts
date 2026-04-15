@@ -1,12 +1,20 @@
 import { NextResponse } from "next/server";
-import { pickPreviewUrl, type FreesoundSound } from "@/lib/freesound";
+import {
+  pickPreviewUrl,
+  type FreesoundSearchResponse,
+  type FreesoundSound,
+} from "@/lib/freesound";
 
 export const runtime = "nodejs";
 
-const SEARCH_FIELDS = "id,name,username,license,duration,previews";
+const SEARCH_FIELDS = "id,name,previews,username,tags,license";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
 function toFreesoundSound(value: unknown): FreesoundSound | null {
@@ -25,7 +33,7 @@ function toFreesoundSound(value: unknown): FreesoundSound | null {
     name: value.name,
     username: typeof value.username === "string" ? value.username : "unknown",
     license: typeof value.license === "string" ? value.license : "Unknown license",
-    duration: typeof value.duration === "number" ? value.duration : 0,
+    tags: isStringArray(value.tags) ? value.tags : [],
     previewUrl,
     previewOggUrl,
   };
@@ -41,18 +49,21 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const query = searchParams.get("q")?.trim() ?? "";
+  const query = searchParams.get("query")?.trim() ?? "";
   if (query.length < 2) {
     return NextResponse.json(
       { error: "Search query must be at least 2 characters." },
       { status: 400 }
     );
   }
+  const page = searchParams.get("page")?.trim() || "1";
+  const pageSize = searchParams.get("page_size")?.trim() || "20";
 
   const url = new URL("https://freesound.org/apiv2/search/");
   url.searchParams.set("query", query);
   url.searchParams.set("fields", SEARCH_FIELDS);
-  url.searchParams.set("page_size", "12");
+  url.searchParams.set("page", page);
+  url.searchParams.set("page_size", pageSize);
 
   try {
     const response = await fetch(url, {
@@ -63,7 +74,7 @@ export async function GET(request: Request) {
     });
 
     const payload = (await response.json().catch(() => null)) as
-      | { detail?: string; results?: unknown[] }
+      | { count?: unknown; next?: unknown; previous?: unknown; detail?: string; results?: unknown[] }
       | null;
 
     if (!response.ok) {
@@ -79,7 +90,14 @@ export async function GET(request: Request) {
           .filter((result): result is FreesoundSound => result !== null)
       : [];
 
-    return NextResponse.json({ results });
+    const body: FreesoundSearchResponse = {
+      count: typeof payload?.count === "number" ? payload.count : results.length,
+      next: typeof payload?.next === "string" ? payload.next : null,
+      previous: typeof payload?.previous === "string" ? payload.previous : null,
+      results,
+    };
+
+    return NextResponse.json(body);
   } catch {
     return NextResponse.json(
       { error: "Freesound did not respond." },
