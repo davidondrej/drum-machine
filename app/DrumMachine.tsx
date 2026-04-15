@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AuthStatus } from "@/app/drum-machine/AuthStatus";
 import { DrumPadGrid } from "@/app/drum-machine/DrumPadGrid";
+import { FreesoundPanel } from "@/app/drum-machine/FreesoundPanel";
 import { MachineControls } from "@/app/drum-machine/MachineControls";
 import { PatternPanels } from "@/app/drum-machine/PatternPanels";
 import { ProducerCoachPanel } from "@/app/drum-machine/ProducerCoachPanel";
@@ -15,6 +16,7 @@ import {
   isCoachModelSlug,
   type CoachModelSlug,
 } from "@/lib/coachModels";
+import { DRUM_SOUNDS } from "@/lib/audioEngine";
 import { buildMachineSnapshot } from "@/lib/producerCoach";
 
 const WAVE_COLORS = {
@@ -51,6 +53,7 @@ export default function DrumMachine() {
     [machine.bpm, machine.drumPattern, machine.melodyPattern, machine.synthWave]
   );
   const coach = useProducerCoach(snapshot, userSignedIn, coachModel);
+  const selectedPadSound = DRUM_SOUNDS[machine.selectedPad];
 
   return (
     <div className="dj-shell relative min-h-screen px-4 py-8 text-white">
@@ -96,7 +99,21 @@ export default function DrumMachine() {
           />
 
           <div className="flex min-w-0 flex-col items-center gap-6">
-            <DrumPadGrid activePads={machine.activePads} onTrigger={machine.triggerPad} />
+            <DrumPadGrid
+              activePads={machine.activePads}
+              selectedPad={machine.selectedPad}
+              sampleAssignments={machine.sampleAssignments}
+              onPadClick={machine.triggerSelectedPad}
+            />
+
+            <FreesoundPanel
+              selectedPadColor={selectedPadSound.color}
+              selectedPadName={selectedPadSound.name}
+              selectedPadSample={machine.sampleAssignments[machine.selectedPad]}
+              isAssigningSample={machine.isAssigningSample}
+              sampleError={machine.sampleError}
+              onAssignSample={machine.assignSampleToPad}
+            />
 
             <SynthKeyboard
               waveform={machine.synthWave}

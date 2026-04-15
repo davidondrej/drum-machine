@@ -2,8 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePatternLibrary } from "@/app/drum-machine/usePatternLibrary";
-import { resumeAudio } from "@/lib/audioCore";
+import { loadAudioBuffer, playAudioBuffer, resumeAudio } from "@/lib/audioCore";
 import { DRUM_SOUNDS } from "@/lib/audioEngine";
+import {
+  createDrumSampleAssignment,
+  type DrumSampleAssignment,
+  type FreesoundSound,
+} from "@/lib/freesound";
 import { createEmptyPattern, NUM_STEPS } from "@/lib/sequencer";
 import {
   playSynthStep,
@@ -13,11 +18,18 @@ import {
 
 export function useDrumMachineState() {
   const initialPattern = useRef(createEmptyPattern());
+  const emptyAssignments = useRef<Array<DrumSampleAssignment | null>>(
+    Array.from({ length: DRUM_SOUNDS.length }, () => null)
+  );
   const [activePads, setActivePads] = useState<Set<number>>(new Set());
   const [drumPattern, setDrumPattern] = useState(initialPattern.current.drums);
   const [melodyPattern, setMelodyPattern] = useState(initialPattern.current.melody);
   const [synthWave, setSynthWave] = useState<SynthWaveform>("sawtooth");
   const [activeMidi, setActiveMidi] = useState<number | null>(null);
+  const [selectedPad, setSelectedPad] = useState(0);
+  const [sampleAssignments, setSampleAssignments] = useState(emptyAssignments.current);
+  const [isAssigningSample, setIsAssigningSample] = useState(false);
+  const [sampleError, setSampleError] = useState("");
   const [selectedMelodyStep, setSelectedMelodyStep] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -31,6 +43,7 @@ export function useDrumMachineState() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRefs = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const previewStopRef = useRef<(() => void) | null>(null);
+  const sampleBuffersRef = useRef<Map<number, AudioBuffer>>(new Map());
 
   const applyLoadedPattern = useCallback(
     ({
@@ -83,7 +96,12 @@ export function useDrumMachineState() {
 
   const triggerPad = useCallback((index: number) => {
     resumeAudio();
-    DRUM_SOUNDS[index].play();
+    const sampleBuffer = sampleBuffersRef.current.get(index);
+    if (sampleBuffer) {
+      playAudioBuffer(sampleBuffer);
+    } else {
+      DRUM_SOUNDS[index].playDefault();
+    }
 
     const existingTimeout = timeoutRefs.current.get(index);
     if (existingTimeout) clearTimeout(existingTimeout);
@@ -100,6 +118,14 @@ export function useDrumMachineState() {
 
     timeoutRefs.current.set(index, timeoutId);
   }, []);
+
+  const triggerSelectedPad = useCallback(
+    (index: number) => {
+      setSelectedPad(index);
+      triggerPad(index);
+    },
+    [triggerPad]
+  );
 
   const stopPreviewNote = useCallback(() => {
     previewStopRef.current?.();
@@ -194,20 +220,49 @@ export function useDrumMachineState() {
     setSelectedMelodyStep(0);
   }, []);
 
+  const assignSampleToPad = useCallback(async (sound: FreesoundSound) => {
+    const targetPad = selectedPad;
+
+    setIsAssigningSample(true);
+    setSampleError("");
+
+    try {
+      resumeAudio();
+      const buffer = await loadAudioBuffer(sound.previewUrl);
+
+      sampleBuffersRef.current.set(targetPad, buffer);
+      setSampleAssignments((prev) =>
+        prev.map((assignment, index) =>
+          index === targetPad ? createDrumSampleAssignment(sound) : assignment
+        )
+      );
+    } catch {
+      setSampleError("Sample loading failed for the selected pad.");
+    } finally {
+      setIsAssigningSample(false);
+    }
+  }, [selectedPad]);
+
   return {
     activeMidi,
     activePads,
+    assignSampleToPad,
     bpm,
     clearPattern,
+    sampleAssignments,
+    sampleError,
     currentStep,
     drumPattern,
     handleSynthStart,
+    isAssigningSample,
     isPlaying,
     isRecording,
     melodyPattern,
     patternLibrary,
+    selectedPad,
     selectedMelodyStep,
     setBpm,
+    setSelectedPad,
     setSelectedMelodyStep,
     setSynthWave,
     stopPreviewNote,
@@ -217,5 +272,6 @@ export function useDrumMachineState() {
     toggleRecording: () => setIsRecording((prev) => !prev),
     clearSelectedMelodyStep: () => setMelodyStep(selectedMelodyStep, null),
     triggerPad,
+    triggerSelectedPad,
   };
 }
