@@ -13,6 +13,7 @@ interface ProducerCoachPanelProps {
   feedback: CoachFeedback;
   error: string;
   hasAnalyzed: boolean;
+  isOnline: boolean;
   isLoading: boolean;
   isStale: boolean;
   remainingToday: number | null;
@@ -58,6 +59,7 @@ export function ProducerCoachPanel({
   feedback,
   error,
   hasAnalyzed,
+  isOnline,
   isLoading,
   isStale,
   remainingToday,
@@ -120,6 +122,22 @@ export function ProducerCoachPanel({
         >
           Sign In For Coach
         </button>
+      </aside>
+    );
+  }
+
+  if (!isOnline) {
+    return (
+      <aside className="glass-panel h-fit rounded-[2rem] p-5 lg:sticky lg:top-6">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-zinc-500">
+          AI Producer Coach
+        </p>
+        <h2 className="mt-2 text-2xl font-black tracking-[0.08em] text-white">
+          Offline Right Now
+        </h2>
+        <p className="mt-3 text-sm leading-6 text-zinc-400">
+          The live machine still runs, but coach analysis needs a network connection.
+        </p>
       </aside>
     );
   }

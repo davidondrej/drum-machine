@@ -8,6 +8,7 @@ import type {
 } from "@/lib/freesound";
 
 interface FreesoundPanelProps {
+  isOnline: boolean;
   selectedPadColor: string;
   selectedPadName: string;
   selectedPadSample: DrumSampleAssignment | null;
@@ -17,6 +18,7 @@ interface FreesoundPanelProps {
 }
 
 export function FreesoundPanel({
+  isOnline,
   selectedPadColor,
   selectedPadName,
   selectedPadSample,
@@ -41,6 +43,11 @@ export function FreesoundPanel({
   async function handleSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const nextQuery = query.trim();
+    if (!isOnline) {
+      setSearchError("Reconnect to search Freesound.");
+      setResults([]);
+      return;
+    }
     if (nextQuery.length < 2) {
       setSearchError("Type at least 2 characters.");
       setResults([]);
@@ -77,6 +84,11 @@ export function FreesoundPanel({
   }
 
   function togglePreview(sound: FreesoundSound) {
+    if (!isOnline) {
+      setSearchError("Reconnect to preview samples.");
+      return;
+    }
+
     const current = previewAudioRef.current;
     if (current && previewingId === sound.id) {
       current.pause();
@@ -153,7 +165,7 @@ export function FreesoundPanel({
         />
         <button
           type="submit"
-          disabled={isSearching}
+          disabled={isSearching || !isOnline}
           className="rounded-2xl px-5 py-3 text-sm font-black uppercase tracking-[0.2em] text-black disabled:cursor-not-allowed disabled:opacity-70"
           style={{ backgroundColor: "#8cf5ff", boxShadow: "0 0 24px #22d3ee35" }}
         >
@@ -161,6 +173,11 @@ export function FreesoundPanel({
         </button>
       </form>
 
+      {!isOnline ? (
+        <p className="mt-3 text-sm font-medium text-amber-200">
+          Freesound needs a connection. The built-in drum voices still work offline.
+        </p>
+      ) : null}
       {sampleError ? (
         <p className="mt-3 text-sm font-medium text-rose-300">{sampleError}</p>
       ) : null}
@@ -181,11 +198,11 @@ export function FreesoundPanel({
             className="flex flex-col gap-3 rounded-2xl border border-white/8 bg-white/[0.03] p-3 md:flex-row md:items-center"
           >
             <button
-              type="button"
-              onClick={() => void onAssignSample(sound)}
-              disabled={isAssigningSample}
-              className="min-w-0 flex-1 text-left disabled:cursor-not-allowed disabled:opacity-75"
-            >
+                type="button"
+                onClick={() => void onAssignSample(sound)}
+                disabled={isAssigningSample || !isOnline}
+                className="min-w-0 flex-1 text-left disabled:cursor-not-allowed disabled:opacity-75"
+              >
               <p className="truncate text-sm font-bold text-white">{sound.name}</p>
               <p className="mt-1 text-xs uppercase tracking-[0.16em] text-zinc-400">
                 @{sound.username}
@@ -199,6 +216,7 @@ export function FreesoundPanel({
               <button
                 type="button"
                 onClick={() => togglePreview(sound)}
+                disabled={!isOnline}
                 className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-200"
               >
                 {previewingId === sound.id ? "Stop" : "Preview"}
@@ -206,7 +224,7 @@ export function FreesoundPanel({
               <button
                 type="button"
                 onClick={() => void onAssignSample(sound)}
-                disabled={isAssigningSample}
+                disabled={isAssigningSample || !isOnline}
                 className="rounded-xl px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-black disabled:cursor-not-allowed disabled:opacity-75"
                 style={{ backgroundColor: selectedPadColor }}
               >

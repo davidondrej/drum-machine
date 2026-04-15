@@ -10,6 +10,7 @@ import { ProducerCoachPanel } from "@/components/ProducerCoachPanel";
 import { SequencerGrid } from "@/components/SequencerGrid";
 import { SynthKeyboard } from "@/components/SynthKeyboard";
 import { useDrumMachineState } from "@/hooks/useDrumMachineState";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useProducerCoach } from "@/hooks/useProducerCoach";
 import {
   DEFAULT_COACH_MODEL,
@@ -28,6 +29,7 @@ const COACH_MODEL_STORAGE_KEY = "producer-coach-model";
 
 export default function DrumMachine() {
   const machine = useDrumMachineState();
+  const isOnline = useOnlineStatus();
   const userSignedIn = Boolean(machine.patternLibrary.user);
   const [coachModel, setCoachModel] = useState<CoachModelSlug>(DEFAULT_COACH_MODEL);
 
@@ -52,7 +54,7 @@ export default function DrumMachine() {
       }),
     [machine.bpm, machine.drumPattern, machine.melodyPattern, machine.synthWave]
   );
-  const coach = useProducerCoach(snapshot, userSignedIn, coachModel);
+  const coach = useProducerCoach(snapshot, userSignedIn && isOnline, coachModel);
   const selectedPadSound = DRUM_SOUNDS[machine.selectedPad];
 
   return (
@@ -80,6 +82,11 @@ export default function DrumMachine() {
           <p className="mt-3 text-sm uppercase tracking-[0.3em] text-zinc-400">
             16 drum voices, live synth lead, and an AI producer in the room
           </p>
+          {!isOnline ? (
+            <p className="mt-4 inline-flex rounded-full border border-amber-400/25 bg-amber-300/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-100">
+              Offline mode: local playback works, cloud features pause
+            </p>
+          ) : null}
         </header>
 
         <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start">
@@ -88,6 +95,7 @@ export default function DrumMachine() {
             feedback={coach.feedback}
             error={coach.error}
             hasAnalyzed={coach.hasAnalyzed}
+            isOnline={isOnline}
             isLoading={coach.isLoading}
             isStale={coach.isStale}
             remainingToday={coach.remainingToday}
@@ -107,6 +115,7 @@ export default function DrumMachine() {
             />
 
             <FreesoundPanel
+              isOnline={isOnline}
               selectedPadColor={selectedPadSound.color}
               selectedPadName={selectedPadSound.name}
               selectedPadSample={machine.sampleAssignments[machine.selectedPad]}
@@ -132,7 +141,7 @@ export default function DrumMachine() {
               <MachineControls
                 isPlaying={machine.isPlaying}
                 bpm={machine.bpm}
-                userSignedIn={Boolean(machine.patternLibrary.user)}
+                userSignedIn={Boolean(machine.patternLibrary.user) && isOnline}
                 showSave={machine.patternLibrary.showSave}
                 showLoad={machine.patternLibrary.showLoad}
                 savedCount={machine.patternLibrary.savedPatterns.length}
@@ -147,7 +156,7 @@ export default function DrumMachine() {
               <PatternPanels
                 showSave={machine.patternLibrary.showSave}
                 showLoad={machine.patternLibrary.showLoad}
-                userSignedIn={Boolean(machine.patternLibrary.user)}
+                userSignedIn={Boolean(machine.patternLibrary.user) && isOnline}
                 saveName={machine.patternLibrary.saveName}
                 savedPatterns={machine.patternLibrary.savedPatterns}
                 saveInputRef={machine.patternLibrary.saveInputRef}

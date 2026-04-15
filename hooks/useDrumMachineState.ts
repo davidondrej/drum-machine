@@ -9,13 +9,13 @@ import {
   type DrumSampleAssignment,
   type FreesoundSound,
 } from "@/lib/freesound";
+import { readPersistedMachineState, writePersistedMachineState } from "@/lib/persistedMachineState";
 import { createEmptyPattern, NUM_STEPS } from "@/lib/sequencer";
 import {
   playSynthStep,
   startSynthNote,
   type SynthWaveform,
 } from "@/lib/synthEngine";
-
 export function useDrumMachineState() {
   const initialPattern = useRef(createEmptyPattern());
   const emptyAssignments = useRef<Array<DrumSampleAssignment | null>>(
@@ -35,6 +35,7 @@ export function useDrumMachineState() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(-1);
   const [bpm, setBpm] = useState(120);
+  const [hasHydratedPersistedState, setHasHydratedPersistedState] = useState(false);
 
   const drumPatternRef = useRef(drumPattern);
   const melodyPatternRef = useRef(melodyPattern);
@@ -85,6 +86,28 @@ export function useDrumMachineState() {
   useEffect(() => {
     synthWaveRef.current = synthWave;
   }, [synthWave]);
+
+  useEffect(() => {
+    const persistedState = readPersistedMachineState();
+    if (!persistedState) {
+      setHasHydratedPersistedState(true);
+      return;
+    }
+
+    setDrumPattern(persistedState.drumPattern);
+    setMelodyPattern(persistedState.melodyPattern);
+    setSynthWave(persistedState.synthWave);
+    setBpm(persistedState.bpm);
+    setHasHydratedPersistedState(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydratedPersistedState) {
+      return;
+    }
+
+    writePersistedMachineState({ bpm, drumPattern, melodyPattern, synthWave });
+  }, [bpm, drumPattern, hasHydratedPersistedState, melodyPattern, synthWave]);
 
   useEffect(() => {
     return () => {
