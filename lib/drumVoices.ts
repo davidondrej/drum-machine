@@ -1,5 +1,9 @@
 import { createNoiseSource, getAudioContext } from "@/lib/audioCore";
 
+/**
+ * Hand-tuned synthesized drum voices. The frequencies and envelope lengths are sound-design data,
+ * so treat them as intentional timbre settings rather than arbitrary constants.
+ */
 function rampDown(gain: GainNode, start: number, peak: number, end: number) {
   gain.gain.setValueAtTime(peak, start);
   gain.gain.exponentialRampToValueAtTime(0.0001, end);
@@ -110,6 +114,7 @@ export function playRimshot() {
   click.stop(t + 0.03);
 }
 
+// Parameterized helpers back multiple lanes in DRUM_SOUNDS without duplicating the envelope logic.
 export function playTom(start: number, end: number, duration: number) {
   const ac = getAudioContext();
   const t = ac.currentTime;
@@ -173,6 +178,7 @@ export function playShaker() {
   noise.stop(t + 0.08);
 }
 
+// Conga and bongo reuse the same pitch-drop shape with different tuning.
 export function playCrashTom(frequency: number, dropTo: number, duration: number) {
   const ac = getAudioContext();
   const t = ac.currentTime;

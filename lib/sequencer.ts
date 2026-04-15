@@ -1,5 +1,9 @@
 import type { SynthWaveform } from "@/lib/synthEngine";
 
+/**
+ * Pattern factories and persistence helpers shared by the live sequencer,
+ * local storage, and the Supabase pattern library.
+ */
 export const NUM_DRUMS = 16;
 export const NUM_STEPS = 8;
 
@@ -81,6 +85,7 @@ export function serializePattern(
 }
 
 export function normalizePattern(value: unknown) {
+  // Legacy patterns were stored as just the drum grid. Treat that as version 1 input.
   if (Array.isArray(value)) {
     return {
       pattern: {

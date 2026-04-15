@@ -14,6 +14,10 @@ import {
   playWoodblock,
 } from "@/lib/drumVoices";
 
+/**
+ * Canonical drum-lane registry shared by the pad grid, sequencer rows, sample assignments,
+ * and coach snapshot generation. Array order is a stable contract across the app.
+ */
 export interface DrumSound {
   name: string;
   color: string;

@@ -1,5 +1,10 @@
+/**
+ * Shared Web Audio primitives used by both the synthesized voices and loaded samples.
+ * This module owns the singleton AudioContext so timing-sensitive code does not create competing contexts.
+ */
 let ctx: AudioContext | null = null;
 let noiseBuffer: AudioBuffer | null = null;
+// Cache in-flight decode work per URL so concurrent callers reuse the same fetch and decode.
 const sampleBufferCache = new Map<string, Promise<AudioBuffer>>();
 
 export function getAudioContext() {
@@ -39,6 +44,7 @@ export async function loadAudioBuffer(url: string) {
     return existing;
   }
 
+  // Cache the pending promise, not just the resolved buffer, to dedupe concurrent loads.
   const pending = fetch(url)
     .then(async (response) => {
       if (!response.ok) {
@@ -49,6 +55,7 @@ export async function loadAudioBuffer(url: string) {
       return await getAudioContext().decodeAudioData(bytes.slice(0));
     })
     .catch((error) => {
+      // Drop failed entries so a later retry can fetch the URL again.
       sampleBufferCache.delete(url);
       throw error;
     });

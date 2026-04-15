@@ -1,6 +1,10 @@
 import { normalizePattern, serializePattern } from "@/lib/sequencer";
 import type { SynthWaveform } from "@/lib/synthEngine";
 
+/**
+ * Local-storage persistence for the current machine state.
+ * Saved patterns in Supabase use a separate flow through `usePatternLibrary()`.
+ */
 const MACHINE_STATE_STORAGE_KEY = "drum-machine-state";
 
 function normalizeBpm(value: unknown) {
@@ -27,6 +31,7 @@ export function readPersistedMachineState() {
       synthWave: normalized.synthWave,
     };
   } catch {
+    // Corrupt local state should not block the app from starting cleanly.
     window.localStorage.removeItem(MACHINE_STATE_STORAGE_KEY);
     return null;
   }

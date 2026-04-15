@@ -2,6 +2,10 @@ import { DRUM_SOUNDS } from "@/lib/audioEngine";
 import { midiToLabel } from "@/lib/music";
 import type { SynthWaveform } from "@/lib/synthEngine";
 
+/**
+ * Snapshot-building utilities for the AI coach.
+ * The snapshot intentionally contains only visible sequencer state so the model cannot invent audio details.
+ */
 export interface DrumLaneSnapshot {
   name: string;
   activeSteps: number[];
@@ -75,6 +79,7 @@ function isRepeatedFirstHalf(drums: boolean[][], melody: Array<number | null>) {
   return drumRepeats && melodyRepeats;
 }
 
+// Keep the prompt payload compact and deterministic so the route can safely forward it to the LLM.
 export function buildMachineSnapshot({
   bpm,
   drumPattern,

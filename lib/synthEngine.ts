@@ -1,6 +1,10 @@
 import { getAudioContext, resumeAudio } from "@/lib/audioCore";
 import { midiToFrequency } from "@/lib/music";
 
+/**
+ * Browser synth engine for the melody lane.
+ * Voices are layered and routed through a shared delay/compression bus for a consistent lead sound.
+ */
 let synthBus: GainNode | null = null;
 
 export type SynthWaveform = "sine" | "sawtooth" | "square";
@@ -18,6 +22,7 @@ function getSynthBus(ac: AudioContext) {
   const tone = ac.createBiquadFilter();
   const compressor = ac.createDynamicsCompressor();
 
+  // Every synth voice feeds this shared bus so delay and compression stay consistent across notes.
   input.gain.value = 0.58;
   wet.gain.value = 0.16;
   delay.delayTime.value = 0.22;
@@ -56,6 +61,7 @@ function createSynthVoice(midi: number, waveform: SynthWaveform) {
   const shimmerGain = ac.createGain();
   const subGain = ac.createGain();
 
+  // The lead voice blends the selected waveform, a slightly detuned shimmer layer, and a sine sub.
   filter.type = "lowpass";
   filter.frequency.setValueAtTime(waveform === "sine" ? 2800 : 4600, t);
   filter.frequency.exponentialRampToValueAtTime(

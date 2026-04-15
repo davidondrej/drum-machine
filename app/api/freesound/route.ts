@@ -5,6 +5,10 @@ import {
   type FreesoundSound,
 } from "@/lib/freesound";
 
+/**
+ * Server-side Freesound proxy used by the browser sample search UI.
+ * The route hides the API key and returns only the subset of fields the app actually uses.
+ */
 export const runtime = "nodejs";
 
 const SEARCH_FIELDS = "id,name,previews,username,tags,license";
@@ -22,6 +26,7 @@ function toFreesoundSound(value: unknown): FreesoundSound | null {
     return null;
   }
 
+  // Normalize vendor preview fields into one preferred URL so the client does not need Freesound-specific logic.
   const previews = isRecord(value.previews) ? value.previews : {};
   const { previewUrl, previewOggUrl } = pickPreviewUrl(previews);
   if (!previewUrl) {

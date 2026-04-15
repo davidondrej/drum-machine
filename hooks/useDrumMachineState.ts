@@ -4,18 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePatternLibrary } from "@/hooks/usePatternLibrary";
 import { loadAudioBuffer, playAudioBuffer, resumeAudio } from "@/lib/audioCore";
 import { DRUM_SOUNDS } from "@/lib/audioEngine";
-import {
-  createDrumSampleAssignment,
-  type DrumSampleAssignment,
-  type FreesoundSound,
-} from "@/lib/freesound";
+import { createDrumSampleAssignment, type DrumSampleAssignment, type FreesoundSound } from "@/lib/freesound";
 import { readPersistedMachineState, writePersistedMachineState } from "@/lib/persistedMachineState";
 import { createEmptyPattern, NUM_STEPS } from "@/lib/sequencer";
-import {
-  playSynthStep,
-  startSynthNote,
-  type SynthWaveform,
-} from "@/lib/synthEngine";
+import { playSynthStep, startSynthNote, type SynthWaveform } from "@/lib/synthEngine";
+
+/**
+ * Main client-side coordinator for sequencer state, audio triggering, preview notes,
+ * local persistence, and the saved-pattern sub-hook.
+ */
 export function useDrumMachineState() {
   const initialPattern = useRef(createEmptyPattern());
   const emptyAssignments = useRef<Array<DrumSampleAssignment | null>>(
@@ -36,7 +33,7 @@ export function useDrumMachineState() {
   const [currentStep, setCurrentStep] = useState(-1);
   const [bpm, setBpm] = useState(120);
   const [hasHydratedPersistedState, setHasHydratedPersistedState] = useState(false);
-
+  // Refs keep the transport callback reading fresh state without rebuilding the timer on every edit.
   const drumPatternRef = useRef(drumPattern);
   const melodyPatternRef = useRef(melodyPattern);
   const synthWaveRef = useRef(synthWave);
@@ -45,7 +42,6 @@ export function useDrumMachineState() {
   const timeoutRefs = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const previewStopRef = useRef<(() => void) | null>(null);
   const sampleBuffersRef = useRef<Map<number, AudioBuffer>>(new Map());
-
   const applyLoadedPattern = useCallback(
     ({
       bpm: nextBpm,
@@ -66,7 +62,6 @@ export function useDrumMachineState() {
     },
     []
   );
-
   const patternLibrary = usePatternLibrary({
     bpm,
     drumPattern,
@@ -74,41 +69,33 @@ export function useDrumMachineState() {
     synthWave,
     onLoadPattern: applyLoadedPattern,
   });
-
   useEffect(() => {
     drumPatternRef.current = drumPattern;
   }, [drumPattern]);
-
   useEffect(() => {
     melodyPatternRef.current = melodyPattern;
   }, [melodyPattern]);
-
   useEffect(() => {
     synthWaveRef.current = synthWave;
   }, [synthWave]);
-
   useEffect(() => {
     const persistedState = readPersistedMachineState();
     if (!persistedState) {
       setHasHydratedPersistedState(true);
       return;
     }
-
     setDrumPattern(persistedState.drumPattern);
     setMelodyPattern(persistedState.melodyPattern);
     setSynthWave(persistedState.synthWave);
     setBpm(persistedState.bpm);
     setHasHydratedPersistedState(true);
   }, []);
-
   useEffect(() => {
     if (!hasHydratedPersistedState) {
       return;
     }
-
     writePersistedMachineState({ bpm, drumPattern, melodyPattern, synthWave });
   }, [bpm, drumPattern, hasHydratedPersistedState, melodyPattern, synthWave]);
-
   useEffect(() => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -116,7 +103,6 @@ export function useDrumMachineState() {
       previewStopRef.current?.();
     };
   }, []);
-
   const triggerPad = useCallback((index: number) => {
     resumeAudio();
     const sampleBuffer = sampleBuffersRef.current.get(index);
@@ -125,10 +111,8 @@ export function useDrumMachineState() {
     } else {
       DRUM_SOUNDS[index].playDefault();
     }
-
     const existingTimeout = timeoutRefs.current.get(index);
     if (existingTimeout) clearTimeout(existingTimeout);
-
     setActivePads((prev) => new Set(prev).add(index));
     const timeoutId = setTimeout(() => {
       setActivePads((prev) => {
@@ -138,10 +122,8 @@ export function useDrumMachineState() {
       });
       timeoutRefs.current.delete(index);
     }, 200);
-
     timeoutRefs.current.set(index, timeoutId);
   }, []);
-
   const triggerSelectedPad = useCallback(
     (index: number) => {
       setSelectedPad(index);
@@ -149,19 +131,16 @@ export function useDrumMachineState() {
     },
     [triggerPad]
   );
-
   const stopPreviewNote = useCallback(() => {
     previewStopRef.current?.();
     previewStopRef.current = null;
     setActiveMidi(null);
   }, []);
-
   const playStep = useCallback(
     (stepIndex: number) => {
       drumPatternRef.current.forEach((row, soundIndex) => {
         if (row[stepIndex]) triggerPad(soundIndex);
       });
-
       const note = melodyPatternRef.current[stepIndex];
       if (note !== null) {
         playSynthStep(note, synthWaveRef.current, (60 / bpm) * 0.5);
@@ -169,22 +148,19 @@ export function useDrumMachineState() {
     },
     [bpm, triggerPad]
   );
-
+  // Playback starts on step 1 immediately, then advances every half beat.
   useEffect(() => {
     if (!isPlaying) return;
-
     intervalRef.current = setInterval(() => {
       stepRef.current = (stepRef.current + 1) % NUM_STEPS;
       setCurrentStep(stepRef.current);
       playStep(stepRef.current);
     }, (60 / bpm) * 1000 * 0.5);
-
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
       intervalRef.current = null;
     };
   }, [bpm, isPlaying, playStep]);
-
   const toggleDrumStep = useCallback((soundIndex: number, stepIndex: number) => {
     setDrumPattern((prev) =>
       prev.map((row, rowIndex) =>
@@ -194,29 +170,24 @@ export function useDrumMachineState() {
       )
     );
   }, []);
-
   const setMelodyStep = useCallback((stepIndex: number, note: number | null) => {
     setMelodyPattern((prev) =>
       prev.map((value, index) => (index === stepIndex ? note : value))
     );
   }, []);
-
   const handleSynthStart = useCallback(
     (midi: number) => {
       stopPreviewNote();
       const voice = startSynthNote(midi, synthWaveRef.current);
       previewStopRef.current = () => voice.stop();
       setActiveMidi(midi);
-
       if (!isRecording) return;
-
       const targetStep = isPlaying ? stepRef.current : selectedMelodyStep;
       setMelodyStep(targetStep, midi);
       if (!isPlaying) setSelectedMelodyStep((targetStep + 1) % NUM_STEPS);
     },
     [isPlaying, isRecording, selectedMelodyStep, setMelodyStep, stopPreviewNote]
   );
-
   const togglePlayback = useCallback(() => {
     if (isPlaying) {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -227,7 +198,6 @@ export function useDrumMachineState() {
       stepRef.current = 0;
       return;
     }
-
     resumeAudio();
     stopPreviewNote();
     stepRef.current = 0;
@@ -235,24 +205,19 @@ export function useDrumMachineState() {
     setIsPlaying(true);
     playStep(0);
   }, [isPlaying, playStep, stopPreviewNote]);
-
   const clearPattern = useCallback(() => {
     const next = createEmptyPattern();
     setDrumPattern(next.drums);
     setMelodyPattern(next.melody);
     setSelectedMelodyStep(0);
   }, []);
-
   const assignSampleToPad = useCallback(async (sound: FreesoundSound) => {
     const targetPad = selectedPad;
-
     setIsAssigningSample(true);
     setSampleError("");
-
     try {
       resumeAudio();
       const buffer = await loadAudioBuffer(sound.previewUrl);
-
       sampleBuffersRef.current.set(targetPad, buffer);
       setSampleAssignments((prev) =>
         prev.map((assignment, index) =>
@@ -265,7 +230,6 @@ export function useDrumMachineState() {
       setIsAssigningSample(false);
     }
   }, [selectedPad]);
-
   return {
     activeMidi,
     activePads,

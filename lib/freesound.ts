@@ -1,3 +1,7 @@
+/**
+ * Freesound-specific transport types and normalization helpers used by the server route
+ * and the sample-assignment flow.
+ */
 export interface FreesoundSound {
   id: number;
   name: string;
@@ -24,6 +28,7 @@ export interface DrumSampleAssignment {
 }
 
 export function pickPreviewUrl(previews: Record<string, unknown>) {
+  // Prefer MP3 previews for the broadest browser compatibility, then fall back to OGG.
   const mp3 = typeof previews["preview-hq-mp3"] === "string"
     ? previews["preview-hq-mp3"]
     : typeof previews["preview-lq-mp3"] === "string"

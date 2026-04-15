@@ -9,6 +9,10 @@ import {
 } from "@/lib/producerCoach";
 import type { CoachModelSlug } from "@/lib/coachModels";
 
+/**
+ * Client request lifecycle for the AI coach.
+ * It separates stale/loading/error state from the snapshot-building logic in `lib/producerCoach.ts`.
+ */
 interface ProducerCoachState {
   feedback: CoachFeedback;
   error: string;
@@ -100,6 +104,7 @@ export function useProducerCoach(
       return;
     }
 
+    // Once a successful analysis exists, any snapshot change marks it stale until the user refreshes.
     if (hasLoadedRef.current) {
       setIsStale(true);
     }

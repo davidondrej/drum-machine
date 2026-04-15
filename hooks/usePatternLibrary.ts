@@ -6,6 +6,10 @@ import type { SynthWaveform } from "@/lib/synthEngine";
 import { createClient } from "@/utils/supabase/client";
 import { normalizePattern, serializePattern } from "@/lib/sequencer";
 
+/**
+ * Supabase-backed saved-pattern workflow.
+ * This hook owns auth state and CRUD, while `lib/sequencer.ts` owns the persisted shape itself.
+ */
 export interface SavedPatternRow {
   id: string;
   name: string;
@@ -85,6 +89,7 @@ export function usePatternLibrary({
 
     let ignore = false;
 
+    // RLS already scopes rows to the signed-in user; this just loads the latest list.
     async function fetchPatterns() {
       const { data } = await supabase
         .from("patterns")

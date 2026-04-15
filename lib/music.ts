@@ -1,3 +1,7 @@
+/**
+ * Small MIDI helpers shared by the synth engine and keyboard UI.
+ * `whiteIndex` is precomputed so the keyboard can position white and black keys consistently.
+ */
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const WHITE_NOTES = new Set([0, 2, 4, 5, 7, 9, 11]);
 

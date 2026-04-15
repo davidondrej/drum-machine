@@ -1,3 +1,7 @@
+/**
+ * Model options exposed in the UI. The slug is the stable storage and API value;
+ * the label is only for presentation.
+ */
 export const COACH_MODEL_OPTIONS = [
   {
     slug: "z-ai/glm-5.1",

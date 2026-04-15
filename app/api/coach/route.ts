@@ -7,6 +7,10 @@ import {
 import { DEFAULT_COACH_MODEL, isCoachModelSlug } from "@/lib/coachModels";
 import { createClient } from "@/utils/supabase/server";
 
+/**
+ * Authenticated producer-coach route.
+ * It validates the visible machine snapshot, consumes quota in Supabase, and forwards a constrained prompt to OpenRouter.
+ */
 export const runtime = "nodejs";
 
 interface QuotaResult {
@@ -64,6 +68,7 @@ function parseFeedback(raw: string): CoachFeedback {
 }
 
 function createPrompt(snapshot: MachineSnapshot) {
+  // The prompt keeps the model grounded in visible state only so it does not invent mix or audio claims.
   return [
     "You are an experienced music producer coaching a beatmaker.",
     "You only know the visible sequencer state. Do not claim to hear audio or mix details.",
@@ -109,6 +114,7 @@ export async function POST(request: Request) {
   }
   const model = isCoachModelSlug(body?.model) ? body.model : DEFAULT_COACH_MODEL;
 
+  // Quota is enforced server-side so the client cannot bypass the daily limit or cooldown window.
   const { data: quota, error: quotaError } = await supabase.rpc("consume_coach_quota", {
     p_daily_limit: dailyLimit,
     p_cooldown_seconds: cooldownSeconds,
