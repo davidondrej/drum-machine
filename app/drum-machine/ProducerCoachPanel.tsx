@@ -61,15 +61,6 @@ export function ProducerCoachPanel({
   onRefresh,
   onSignIn,
 }: ProducerCoachPanelProps) {
-  const statusLabel = isLoading
-    ? "Analyzing"
-    : !hasAnalyzed
-      ? "Waiting"
-      : isStale
-        ? "Out of date"
-        : "Fresh";
-  const activeDrums = snapshot.drums.filter((lane) => lane.hitCount > 0).length;
-
   if (authLoading) {
     return (
       <aside className="glass-panel h-fit rounded-[2rem] p-5 lg:sticky lg:top-6">
@@ -105,7 +96,7 @@ export function ProducerCoachPanel({
 
   return (
     <aside className="glass-panel h-fit rounded-[2rem] p-5 lg:sticky lg:top-6">
-      <div className="mb-5 flex items-start justify-between gap-3">
+      <div className="mb-6">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-zinc-500">
             AI Producer Coach
@@ -121,38 +112,14 @@ export function ProducerCoachPanel({
         <button
           onClick={onRefresh}
           disabled={isLoading || !userSignedIn}
-          className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200 transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-6 w-full rounded-full bg-white px-5 py-3.5 text-sm font-bold uppercase tracking-[0.24em] text-black shadow-lg transition duration-150 ease-out hover:scale-[1.02] hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
         >
-          {hasAnalyzed ? "Refresh" : "Analyze"}
+          {isLoading ? "Analyzing..." : hasAnalyzed ? "Refresh Analysis" : "Analyze"}
         </button>
-      </div>
-
-      <div className="mb-5 grid grid-cols-2 gap-2 text-xs text-zinc-400">
-        <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2">
-          <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Status</div>
-          <div className="mt-1 font-semibold text-white">{statusLabel}</div>
-        </div>
-        <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2">
-          <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Updated</div>
-          <div className="mt-1 font-semibold text-white">{lastUpdated || "Waiting"}</div>
-        </div>
-        <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2">
-          <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Groove</div>
-          <div className="mt-1 font-semibold text-white">
-            {snapshot.bpm} BPM · {snapshot.synthWave}
-          </div>
-        </div>
-        <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2">
-          <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Density</div>
-          <div className="mt-1 font-semibold text-white">
-            {activeDrums} drum lanes · {snapshot.stats.totalMelodyHits} notes
-          </div>
-        </div>
-        <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2 col-span-2">
-          <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Quota</div>
-          <div className="mt-1 font-semibold text-white">
-            {remainingToday === null ? "Ready to analyze" : `${remainingToday} coach requests left today`}
-          </div>
+        
+        <div className="mt-3 text-center text-xs font-medium text-zinc-500">
+          {remainingToday === null ? "Ready to analyze" : `${remainingToday} requests left today`}
+          {hasAnalyzed && !isLoading && isStale && " • Pattern changed"}
         </div>
       </div>
 
@@ -162,17 +129,14 @@ export function ProducerCoachPanel({
         </div>
       ) : null}
 
-      <section className="mb-5 rounded-[1.6rem] border border-white/8 bg-black/20 p-4">
-        <h3 className="text-[11px] font-semibold uppercase tracking-[0.28em] text-zinc-500">
-          Read
-        </h3>
-        <p className="mt-3 text-sm leading-7 text-zinc-100">{feedback.summary}</p>
-        <p className="mt-3 text-xs leading-6 text-cyan-200/90">
+      <div className="mb-6">
+        <p className="text-sm leading-7 text-zinc-100">{feedback.summary}</p>
+        <p className="mt-2 text-xs leading-6 text-zinc-400">
           {hasAnalyzed
             ? feedback.producerNote
             : "Press Analyze when you want feedback on the current pattern."}
         </p>
-      </section>
+      </div>
 
       <div className="space-y-5">
         <Section title="What Is Missing" items={feedback.missingElements} />
