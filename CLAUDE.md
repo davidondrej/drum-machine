@@ -1,6 +1,7 @@
 ## Rules
 - Never do a git commit, or push to github, without the user's explicit permission
 - make sure to use git fully & frequently
+- Never run `npm run build` unless the user explicitly asks for it
 
 ## Git Workflow
 - Use clear and descriptive commit messages
