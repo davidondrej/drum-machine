@@ -1,18 +1,24 @@
 "use client";
 
-import type { CoachFeedback, MachineSnapshot } from "@/lib/producerCoach";
+import { useEffect, useRef, useState } from "react";
+import {
+  COACH_MODEL_OPTIONS,
+  getCoachModelName,
+  type CoachModelSlug,
+} from "@/lib/coachModels";
+import type { CoachFeedback } from "@/lib/producerCoach";
 
 interface ProducerCoachPanelProps {
   authLoading: boolean;
   feedback: CoachFeedback;
-  snapshot: MachineSnapshot;
   error: string;
   hasAnalyzed: boolean;
   isLoading: boolean;
   isStale: boolean;
-  lastUpdated: string;
   remainingToday: number | null;
+  selectedModel: CoachModelSlug;
   userSignedIn: boolean;
+  onModelChange: (model: CoachModelSlug) => void;
   onRefresh: () => void;
   onSignIn: () => void;
 }
@@ -50,17 +56,41 @@ function Section({
 export function ProducerCoachPanel({
   authLoading,
   feedback,
-  snapshot,
   error,
   hasAnalyzed,
   isLoading,
   isStale,
-  lastUpdated,
   remainingToday,
+  selectedModel,
   userSignedIn,
+  onModelChange,
   onRefresh,
   onSignIn,
 }: ProducerCoachPanelProps) {
+  const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+  const selectorRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent) {
+      if (!selectorRef.current?.contains(event.target as Node)) {
+        setIsSelectorOpen(false);
+      }
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsSelectorOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, []);
+
   if (authLoading) {
     return (
       <aside className="glass-panel h-fit rounded-[2rem] p-5 lg:sticky lg:top-6">
@@ -107,6 +137,76 @@ export function ProducerCoachPanel({
           <p className="mt-2 text-sm leading-6 text-zinc-400">
             Reads the live pattern, BPM, and synth settings. No fake audio claims. Just arrangement advice.
           </p>
+        </div>
+
+        <div className="mt-5" ref={selectorRef}>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-zinc-500">
+              Coach Model
+            </p>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-300">
+              Active Now
+            </span>
+          </div>
+
+          <div className="relative">
+            <button
+              type="button"
+              aria-expanded={isSelectorOpen}
+              onClick={() => setIsSelectorOpen((open) => !open)}
+              className="w-full rounded-[1.4rem] border border-cyan-400/30 bg-[linear-gradient(135deg,rgba(0,210,255,0.14),rgba(255,79,216,0.14))] px-4 py-3 text-left shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_0_24px_rgba(0,210,255,0.08)] transition duration-150 ease-out hover:border-cyan-300/45 hover:shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_0_30px_rgba(255,79,216,0.14)]"
+            >
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.26em] text-zinc-400">
+                {getCoachModelName(selectedModel)}
+              </span>
+              <span className="mt-1 flex items-center justify-between gap-3 text-sm font-medium text-white">
+                <span>{selectedModel}</span>
+                <span className="text-lg leading-none text-cyan-200">{isSelectorOpen ? "−" : "+"}</span>
+              </span>
+            </button>
+
+            {isSelectorOpen ? (
+              <div className="absolute left-0 right-0 top-[calc(100%+0.6rem)] z-20 space-y-2 rounded-[1.5rem] border border-white/10 bg-[linear-gradient(180deg,rgba(18,24,38,0.98),rgba(10,14,24,0.96))] p-2 shadow-[0_24px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+                {COACH_MODEL_OPTIONS.map((option) => {
+                  const isSelected = option.slug === selectedModel;
+
+                  return (
+                    <button
+                      key={option.slug}
+                      type="button"
+                      onClick={() => {
+                        onModelChange(option.slug);
+                        setIsSelectorOpen(false);
+                      }}
+                      className={`w-full rounded-[1.15rem] border px-3 py-3 text-left transition ${
+                        isSelected
+                          ? "border-cyan-300/50 bg-[linear-gradient(135deg,rgba(0,210,255,0.18),rgba(255,79,216,0.18))] shadow-[0_0_20px_rgba(0,210,255,0.12)]"
+                          : "border-white/6 bg-white/[0.03] hover:border-cyan-400/25 hover:bg-white/[0.05]"
+                      }`}
+                    >
+                      <span className="flex items-center justify-between gap-3">
+                        <span>
+                          <span className="block text-sm font-semibold uppercase tracking-[0.18em] text-white">
+                            {option.name}
+                          </span>
+                          <span className="mt-1 block text-xs text-zinc-400">{option.slug}</span>
+                        </span>
+                        <span
+                          className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.22em] ${
+                            isSelected
+                              ? "bg-cyan-300/20 text-cyan-100"
+                              : "bg-white/6 text-zinc-500"
+                          }`}
+                        >
+                          {isSelected ? "Selected" : "Switch"}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <button

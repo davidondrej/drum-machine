@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AuthStatus } from "@/app/drum-machine/AuthStatus";
 import { DrumPadGrid } from "@/app/drum-machine/DrumPadGrid";
 import { MachineControls } from "@/app/drum-machine/MachineControls";
@@ -10,6 +10,11 @@ import { SequencerGrid } from "@/app/drum-machine/SequencerGrid";
 import { SynthKeyboard } from "@/app/drum-machine/SynthKeyboard";
 import { useDrumMachineState } from "@/app/drum-machine/useDrumMachineState";
 import { useProducerCoach } from "@/app/drum-machine/useProducerCoach";
+import {
+  DEFAULT_COACH_MODEL,
+  isCoachModelSlug,
+  type CoachModelSlug,
+} from "@/lib/coachModels";
 import { buildMachineSnapshot } from "@/lib/producerCoach";
 
 const WAVE_COLORS = {
@@ -17,10 +22,24 @@ const WAVE_COLORS = {
   sawtooth: "#ff4fd8",
   square: "#ffd54a",
 } as const;
+const COACH_MODEL_STORAGE_KEY = "producer-coach-model";
 
 export default function DrumMachine() {
   const machine = useDrumMachineState();
   const userSignedIn = Boolean(machine.patternLibrary.user);
+  const [coachModel, setCoachModel] = useState<CoachModelSlug>(DEFAULT_COACH_MODEL);
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem(COACH_MODEL_STORAGE_KEY);
+    if (isCoachModelSlug(stored)) {
+      setCoachModel(stored);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(COACH_MODEL_STORAGE_KEY, coachModel);
+  }, [coachModel]);
+
   const snapshot = useMemo(
     () =>
       buildMachineSnapshot({
@@ -31,7 +50,7 @@ export default function DrumMachine() {
       }),
     [machine.bpm, machine.drumPattern, machine.melodyPattern, machine.synthWave]
   );
-  const coach = useProducerCoach(snapshot, userSignedIn);
+  const coach = useProducerCoach(snapshot, userSignedIn, coachModel);
 
   return (
     <div className="dj-shell relative min-h-screen px-4 py-8 text-white">
@@ -64,14 +83,14 @@ export default function DrumMachine() {
           <ProducerCoachPanel
             authLoading={machine.patternLibrary.authLoading}
             feedback={coach.feedback}
-            snapshot={snapshot}
             error={coach.error}
             hasAnalyzed={coach.hasAnalyzed}
             isLoading={coach.isLoading}
             isStale={coach.isStale}
-            lastUpdated={coach.lastUpdated}
             remainingToday={coach.remainingToday}
+            selectedModel={coachModel}
             userSignedIn={userSignedIn}
+            onModelChange={setCoachModel}
             onRefresh={coach.refresh}
             onSignIn={machine.patternLibrary.handleSignIn}
           />

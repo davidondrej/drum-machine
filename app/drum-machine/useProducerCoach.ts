@@ -7,6 +7,7 @@ import {
   type CoachFeedback,
   type MachineSnapshot,
 } from "@/lib/producerCoach";
+import type { CoachModelSlug } from "@/lib/coachModels";
 
 interface ProducerCoachState {
   feedback: CoachFeedback;
@@ -21,7 +22,8 @@ interface ProducerCoachState {
 
 export function useProducerCoach(
   snapshot: MachineSnapshot,
-  enabled: boolean
+  enabled: boolean,
+  model: CoachModelSlug
 ): ProducerCoachState {
   const [feedback, setFeedback] = useState<CoachFeedback>(EMPTY_COACH_FEEDBACK);
   const [error, setError] = useState("");
@@ -50,7 +52,7 @@ export function useProducerCoach(
       const response = await fetch("/api/coach", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ snapshot }),
+        body: JSON.stringify({ snapshot, model }),
         signal: controller.signal,
       });
 
@@ -82,7 +84,7 @@ export function useProducerCoach(
       }
       setIsLoading(false);
     }
-  }, [enabled, snapshot]);
+  }, [enabled, model, snapshot]);
 
   useEffect(() => {
     if (!enabled) {

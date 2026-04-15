@@ -4,6 +4,7 @@ import {
   type CoachFeedback,
   type MachineSnapshot,
 } from "@/lib/producerCoach";
+import { DEFAULT_COACH_MODEL, isCoachModelSlug } from "@/lib/coachModels";
 import { createClient } from "@/utils/supabase/server";
 
 export const runtime = "nodejs";
@@ -79,7 +80,6 @@ function createPrompt(snapshot: MachineSnapshot) {
 export async function POST(request: Request) {
   const supabase = await createClient();
   const apiKey = process.env.OPENROUTER_API_KEY;
-  const model = process.env.OPENROUTER_MODEL || "z-ai/glm-5.1";
   const dailyLimit = readPositiveInt(process.env.COACH_DAILY_LIMIT, 15);
   const cooldownSeconds = readPositiveInt(process.env.COACH_COOLDOWN_SECONDS, 12);
 
@@ -101,10 +101,13 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = (await request.json().catch(() => null)) as { snapshot?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as
+    | { snapshot?: unknown; model?: unknown }
+    | null;
   if (!isMachineSnapshot(body?.snapshot)) {
     return NextResponse.json({ error: "Invalid coach payload." }, { status: 400 });
   }
+  const model = isCoachModelSlug(body?.model) ? body.model : DEFAULT_COACH_MODEL;
 
   const { data: quota, error: quotaError } = await supabase.rpc("consume_coach_quota", {
     p_daily_limit: dailyLimit,
