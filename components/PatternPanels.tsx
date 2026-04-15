@@ -1,7 +1,7 @@
 "use client";
 
 import type { RefObject } from "react";
-import type { SavedPatternRow } from "@/app/drum-machine/usePatternLibrary";
+import type { SavedPatternRow } from "@/hooks/usePatternLibrary";
 import { countPatternEvents } from "@/lib/sequencer";
 
 interface PatternPanelsProps {

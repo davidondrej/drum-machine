@@ -14,3 +14,10 @@
 - each file should start with a number to document the order of the operation
 - we must have the entire DB schema documented in the /docs folder, in different .sql files
 - name the files like "001_create_x_table.sql" or "002_change_rls_policy.sql" or "003_add_foreign_key.sql" etc.
+
+## Codebase Principles
+- keep our codebase very modular & well documented
+- follow the principle of "separation of concerns"
+
+
+

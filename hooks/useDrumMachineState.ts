@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { usePatternLibrary } from "@/app/drum-machine/usePatternLibrary";
+import { usePatternLibrary } from "@/hooks/usePatternLibrary";
 import { loadAudioBuffer, playAudioBuffer, resumeAudio } from "@/lib/audioCore";
 import { DRUM_SOUNDS } from "@/lib/audioEngine";
 import {

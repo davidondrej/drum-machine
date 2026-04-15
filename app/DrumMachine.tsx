@@ -1,16 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AuthStatus } from "@/app/drum-machine/AuthStatus";
-import { DrumPadGrid } from "@/app/drum-machine/DrumPadGrid";
-import { FreesoundPanel } from "@/app/drum-machine/FreesoundPanel";
-import { MachineControls } from "@/app/drum-machine/MachineControls";
-import { PatternPanels } from "@/app/drum-machine/PatternPanels";
-import { ProducerCoachPanel } from "@/app/drum-machine/ProducerCoachPanel";
-import { SequencerGrid } from "@/app/drum-machine/SequencerGrid";
-import { SynthKeyboard } from "@/app/drum-machine/SynthKeyboard";
-import { useDrumMachineState } from "@/app/drum-machine/useDrumMachineState";
-import { useProducerCoach } from "@/app/drum-machine/useProducerCoach";
+import { AuthStatus } from "@/components/AuthStatus";
+import { DrumPadGrid } from "@/components/DrumPadGrid";
+import { FreesoundPanel } from "@/components/FreesoundPanel";
+import { MachineControls } from "@/components/MachineControls";
+import { PatternPanels } from "@/components/PatternPanels";
+import { ProducerCoachPanel } from "@/components/ProducerCoachPanel";
+import { SequencerGrid } from "@/components/SequencerGrid";
+import { SynthKeyboard } from "@/components/SynthKeyboard";
+import { useDrumMachineState } from "@/hooks/useDrumMachineState";
+import { useProducerCoach } from "@/hooks/useProducerCoach";
 import {
   DEFAULT_COACH_MODEL,
   isCoachModelSlug,
