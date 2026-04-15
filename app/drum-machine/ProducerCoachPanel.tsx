@@ -36,19 +36,19 @@ function Section({
 
   return (
     <section className="space-y-2">
-      <h3 className="text-[11px] font-semibold uppercase tracking-[0.28em] text-zinc-500">
+      <h3 className="text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-500">
         {title}
       </h3>
-      <div className="space-y-2">
+      <ul className="space-y-1.5 list-none">
         {items.map((item) => (
-          <p
+          <li
             key={item}
-            className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2 text-sm leading-6 text-zinc-200"
+            className="relative pl-3 text-[13px] leading-relaxed text-zinc-300 before:absolute before:left-0 before:top-[0.45rem] before:h-1 before:w-1 before:rounded-full before:bg-zinc-600"
           >
             {item}
-          </p>
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   );
 }
@@ -238,7 +238,7 @@ export function ProducerCoachPanel({
         </p>
       </div>
 
-      <div className="space-y-5">
+      <div className="space-y-4">
         <Section title="What Is Missing" items={feedback.missingElements} />
         <Section title="What Feels Safe" items={feedback.tooSafe} />
         <Section title="Specific Moves" items={feedback.specificMoves} />
